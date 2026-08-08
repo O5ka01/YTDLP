@@ -6,6 +6,7 @@
   "entries": [
     {"id": "aaa", "title": "Lecture 1", "url": "https://youtu.be/aaa", "duration": 3600},
     {"id": "bbb", "title": "Lecture 2", "url": "https://youtu.be/bbb", "duration": 3400},
-    {"id": "ccc", "title": "Lecture 3", "url": "https://youtu.be/ccc", "duration": 3500}
+    {"id": "ccc", "title": "Lecture 3", "url": "https://youtu.be/ccc", "duration": 3500},
+    {"id": "ddd", "title": null, "url": "https://youtu.be/ddd", "duration": null}
   ]
 }

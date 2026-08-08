@@ -1380,10 +1380,16 @@ The fixtures below are trimmed real `yt-dlp -J` output — enough fields to exer
   "entries": [
     {"id": "aaa", "title": "Lecture 1", "url": "https://youtu.be/aaa", "duration": 3600},
     {"id": "bbb", "title": "Lecture 2", "url": "https://youtu.be/bbb", "duration": 3400},
-    {"id": "ccc", "title": "Lecture 3", "url": "https://youtu.be/ccc", "duration": 3500}
+    {"id": "ccc", "title": "Lecture 3", "url": "https://youtu.be/ccc", "duration": 3500},
+    {"id": "ddd", "title": null, "url": "https://youtu.be/ddd", "duration": null}
   ]
 }
 ```
+
+The fourth entry is a deleted or private video. This is not a hypothetical: probing a real
+1158-entry YouTube playlist returned 6 entries with `"title": null`. A non-optional `title`
+makes `JSONDecoder` throw on the whole document, so one dead video would discard 1152 good
+ones — which is why `PlaylistEntry.title` is optional and `displayTitle` exists.
 
 - [ ] **Step 3: Write the failing tests**
 
@@ -1432,10 +1438,25 @@ private func fixture(_ name: String) throws -> Data {
 
     #expect(info.isPlaylist)
     #expect(info.title == "Lecture Series")
-    #expect(info.entries.count == 3)
+    #expect(info.entries.count == 4)
     #expect(info.entries[2].title == "Lecture 3")
     #expect(info.entries[0].url == "https://youtu.be/aaa")
     #expect(info.formats.isEmpty)
+}
+
+@Test func playlistEntryWithNullTitleDecodesWithPlaceholder() throws {
+    let info = try MediaInfo.decode(from: fixture("playlist"))
+    let unavailable = try #require(info.entries.first { $0.id == "ddd" })
+
+    #expect(unavailable.title == nil)
+    #expect(unavailable.displayTitle == "[Unavailable]")
+}
+
+@Test func availableEntryDisplaysItsRealTitle() throws {
+    let info = try MediaInfo.decode(from: fixture("playlist"))
+    let normal = try #require(info.entries.first { $0.id == "aaa" })
+
+    #expect(normal.displayTitle == "Lecture 1")
 }
 
 @Test func formattedDurationIsHumanReadable() throws {
@@ -1479,9 +1500,14 @@ public struct RawFormat: Equatable, Sendable, Decodable {
 
 public struct PlaylistEntry: Equatable, Sendable, Decodable, Identifiable {
     public let id: String
-    public let title: String
+    public let title: String?
     public let url: String?
     public let duration: Double?
+
+    /// Real playlists contain deleted or private videos whose title is null.
+    /// Entries are kept rather than dropped so positions still line up with
+    /// yt-dlp's own `--playlist-index` numbering.
+    public var displayTitle: String { title ?? "[Unavailable]" }
 }
 
 /// The decoded output of `yt-dlp -J`.
@@ -1529,7 +1555,7 @@ public struct MediaInfo: Equatable, Sendable, Decodable {
 - [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `cd ~/Developer/YTDLP/YTDLPCore && swift test`
-Expected: PASS, 46 tests.
+Expected: PASS, 48 tests.
 
 - [ ] **Step 7: Commit**
 
@@ -1681,7 +1707,7 @@ public enum FormatCatalog {
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `cd ~/Developer/YTDLP/YTDLPCore && swift test`
-Expected: PASS, 54 tests.
+Expected: PASS, 56 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -2990,7 +3016,7 @@ Build and launch, then confirm:
 - [ ] **Step 5: Full regression**
 
 Run: `cd ~/Developer/YTDLP/YTDLPCore && swift test`
-Expected: PASS, 54 tests.
+Expected: PASS, 56 tests.
 
 Run: `cd ~/Developer/YTDLP && xcodebuild -project YTDLP.xcodeproj -scheme YTDLP -configuration Debug -derivedDataPath ./DD build 2>&1 | grep -E "^\*\*|error:"`
 Expected: `** BUILD SUCCEEDED **`.
@@ -3016,7 +3042,7 @@ git add -A && git commit -m "feat: drag and drop, dock progress, finished-job cl
 
 | What | Command | Expected |
 |---|---|---|
-| Core logic | `cd YTDLPCore && swift test` | 54 tests pass |
+| Core logic | `cd YTDLPCore && swift test` | 56 tests pass |
 | App builds | `xcodebuild -project YTDLP.xcodeproj -scheme YTDLP -configuration Debug -derivedDataPath ./DD build` | `** BUILD SUCCEEDED **` |
 | Main flow | Task 14, Step 5 | All seven checks pass |
 | Integration | Task 16 Step 4 and Task 17 Step 4 | All eight checks pass |

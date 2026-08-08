@@ -19,9 +19,14 @@ public struct RawFormat: Equatable, Sendable, Decodable {
 
 public struct PlaylistEntry: Equatable, Sendable, Decodable, Identifiable {
     public let id: String
-    public let title: String
+    public let title: String?
     public let url: String?
     public let duration: Double?
+
+    /// Real playlists contain deleted or private videos whose title is null.
+    /// Entries are kept rather than dropped so positions still line up with
+    /// yt-dlp's own `--playlist-index` numbering.
+    public var displayTitle: String { title ?? "[Unavailable]" }
 }
 
 /// The decoded output of `yt-dlp -J`.

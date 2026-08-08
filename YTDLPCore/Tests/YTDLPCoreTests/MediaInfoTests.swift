@@ -42,7 +42,7 @@ private func fixture(_ name: String) throws -> Data {
 
     #expect(info.isPlaylist)
     #expect(info.title == "Lecture Series")
-    #expect(info.entries.count == 3)
+    #expect(info.entries.count == 4)
     #expect(info.entries[2].title == "Lecture 3")
     #expect(info.entries[0].url == "https://youtu.be/aaa")
     #expect(info.formats.isEmpty)
@@ -51,6 +51,20 @@ private func fixture(_ name: String) throws -> Data {
 @Test func formattedDurationIsHumanReadable() throws {
     let info = try MediaInfo.decode(from: fixture("single-video"))
     #expect(info.formattedDuration == "3:33")
+}
+
+@Test func playlistEntryWithNullTitleDecodesWithPlaceholder() throws {
+    let info = try MediaInfo.decode(from: fixture("playlist"))
+    let unavailable = try #require(info.entries.first { $0.id == "ddd" })
+    #expect(unavailable.title == nil)
+    #expect(unavailable.displayTitle == "[Unavailable]")
+    #expect(info.entries.count == 4)
+}
+
+@Test func availableEntryDisplaysItsRealTitle() throws {
+    let info = try MediaInfo.decode(from: fixture("playlist"))
+    let normal = try #require(info.entries.first { $0.id == "aaa" })
+    #expect(normal.displayTitle == "Lecture 1")
 }
 
 @Test func garbageInputThrows() {
