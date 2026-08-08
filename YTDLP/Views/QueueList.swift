@@ -46,8 +46,15 @@ struct QueueList: View {
         case .retrying:
             Text("Retrying…").font(.caption).foregroundStyle(.secondary)
         case .finished:
-            Label("Done", systemImage: "checkmark.circle.fill")
-                .font(.caption).foregroundStyle(.green)
+            HStack(spacing: 6) {
+                Label("Done", systemImage: "checkmark.circle.fill")
+                    .font(.caption).foregroundStyle(.green)
+                Button("Show in Finder") {
+                    Notifier.shared.reveal(folder: AppSettings.shared.downloadFolder)
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+            }
         case .failed(let message, _):
             Label(message, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption).foregroundStyle(.red).lineLimit(2)

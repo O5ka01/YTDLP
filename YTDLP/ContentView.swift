@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import YTDLPCore
 
@@ -14,6 +15,10 @@ struct ContentView: View {
 
     @State private var choices: [FormatChoice] = []
     @State private var selectedHeight: Int?
+
+    /// Last clipboard string adopted into `urlText`, so switching back to the
+    /// app with the same URL still on the clipboard doesn't re-adopt it.
+    @State private var lastClipboardURL = ""
 
     @State private var showOptions = false
     @State private var audioOnly = false
@@ -123,6 +128,10 @@ struct ContentView: View {
         .padding(16)
         .frame(width: 460)
         .task {
+            Notifier.shared.requestAuthorization()
+            queue.onFinished = { job in
+                Notifier.shared.notifyFinished(title: job.title, folder: settings.downloadFolder)
+            }
             do {
                 try await binaries.prepare()
                 toolchainError = nil
@@ -130,6 +139,21 @@ struct ContentView: View {
                 toolchainError = error.localizedDescription
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            adoptClipboardURL()
+        }
+    }
+
+    /// Prefills the field from the clipboard, but never overwrites typed text.
+    private func adoptClipboardURL() {
+        guard urlText.isEmpty else { return }
+        guard let pasted = NSPasteboard.general.string(forType: .string) else { return }
+
+        let trimmed = pasted.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("http"), trimmed != lastClipboardURL else { return }
+
+        lastClipboardURL = trimmed
+        urlText = trimmed
     }
 
     private func scheduleProbe(for text: String) {
