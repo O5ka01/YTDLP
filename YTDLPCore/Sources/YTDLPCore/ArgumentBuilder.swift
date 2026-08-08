@@ -23,6 +23,10 @@ public enum ArgumentBuilder {
         argv += outputArguments(options)
         argv += modeArguments(options)
         argv += featureArguments(options)
+        // Without `--`, yt-dlp (like any getopt-style parser) can misread a
+        // URL that happens to start with a dash as an option instead of the
+        // positional argument it is.
+        argv.append("--")
         argv.append(url)
         return argv
     }

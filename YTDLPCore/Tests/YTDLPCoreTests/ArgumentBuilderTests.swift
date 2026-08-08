@@ -24,11 +24,11 @@ private func argv(_ transform: (inout DownloadOptions) -> Void = { _ in }) -> [S
     #expect(contains(result, ["-N", "4"]))
     #expect(result.contains("--embed-metadata"))
     #expect(result.contains("--embed-chapters"))
-    #expect(result.last == "URL")
+    #expect(result.suffix(2) == ["--", "URL"])
 }
 
-@Test func urlIsLastSoItIsNeverParsedAsAFlagValue() {
-    #expect(argv { $0.cookieBrowser = "safari" }.last == "URL")
+@Test func urlIsLastBehindADashDashSoItIsNeverParsedAsAFlagOrFlagValue() {
+    #expect(argv { $0.cookieBrowser = "safari" }.suffix(2) == ["--", "URL"])
 }
 
 @Test func bestVideoUsesNoHeightCap() {

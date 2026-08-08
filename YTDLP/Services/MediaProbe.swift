@@ -28,6 +28,7 @@ struct MediaProbe {
             "--no-warnings",
             "--flat-playlist",
             "--ffmpeg-location", ffmpegPath,
+            "--",
             url,
         ]
 

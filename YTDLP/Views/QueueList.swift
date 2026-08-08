@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct QueueList: View {
@@ -55,9 +56,30 @@ struct QueueList: View {
                 .buttonStyle(.link)
                 .font(.caption)
             }
-        case .failed(let message, _):
-            Label(message, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption).foregroundStyle(.red).lineLimit(2)
+        case .failed(let message, let details):
+            VStack(alignment: .leading, spacing: 2) {
+                Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption).foregroundStyle(.red).lineLimit(2)
+                if !details.isEmpty {
+                    DisclosureGroup("Details") {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ScrollView {
+                                Text(details)
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .frame(maxHeight: 120)
+                            Button("Copy") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(details, forType: .string)
+                            }
+                            .buttonStyle(.link)
+                        }
+                    }
+                    .font(.caption)
+                }
+            }
         }
     }
 }

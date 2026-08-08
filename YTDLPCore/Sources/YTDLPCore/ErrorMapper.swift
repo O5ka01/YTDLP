@@ -11,7 +11,7 @@ public enum ErrorMapper {
         (["unsupported url"],
          "yt-dlp doesn't recognise this site."),
         (["ffmpeg not found", "ffmpeg is not installed"],
-         "The bundled ffmpeg is missing — reinstall the app."),
+         "ffmpeg wasn't found. Install it with:  brew install ffmpeg"),
     ]
 
     public static func message(forStderr stderr: String) -> String {

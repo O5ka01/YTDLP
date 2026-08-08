@@ -138,11 +138,22 @@ struct ContentView: View {
             AppDelegate.openURLHandler = { urlText = $0 }
             Notifier.shared.requestAuthorization()
             queue.onFinished = { job in
-                Notifier.shared.notifyFinished(title: job.title, folder: job.downloadFolder)
+                Notifier.shared.notifyFinished(title: job.title)
             }
             do {
                 try await binaries.prepare()
                 toolchainError = nil
+                // `openURLHandler` above may have already dropped a buffered
+                // cold-launch URL into `urlText` before this `prepare()` call
+                // resolved. `scheduleProbe(for:)` bails silently whenever the
+                // binaries aren't ready yet, so that first probe attempt (if
+                // it ran at all) was a no-op. Re-trigger it now that the
+                // toolchain is actually ready, but only if nothing has probed
+                // successfully since — don't clobber a result the user is
+                // already looking at.
+                if info == nil, !urlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    scheduleProbe(for: urlText)
+                }
             } catch {
                 toolchainError = error.localizedDescription
             }

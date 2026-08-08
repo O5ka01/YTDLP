@@ -26,9 +26,9 @@ import Testing
             == "yt-dlp doesn't recognise this site.")
 }
 
-@Test func missingFfmpegPointsAtTheBundle() {
+@Test func missingFfmpegSuggestsHomebrew() {
     #expect(ErrorMapper.message(forStderr: "ERROR: ffmpeg not found. Please install")
-            == "The bundled ffmpeg is missing — reinstall the app.")
+            == "ffmpeg wasn't found. Install it with:  brew install ffmpeg")
 }
 
 @Test func unrecognisedErrorFallsBackToFirstNonEmptyLine() {

@@ -17,7 +17,7 @@ final class Notifier: @unchecked Sendable {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
-    func notifyFinished(title: String, folder: String) {
+    func notifyFinished(title: String) {
         let content = UNMutableNotificationContent()
         content.title = "Download finished"
         content.body = title
