@@ -1,0 +1,8 @@
+.DS_Store
+DerivedData/
+DD/
+.build/
+*.xcuserstate
+xcuserdata/
+YTDLP/Resources/yt-dlp
+YTDLP/Resources/ffmpeg
