@@ -1,0 +1,16 @@
+{
+  "id": "dQw4w9WgXcQ",
+  "_type": "video",
+  "title": "Never Gonna Give You Up",
+  "uploader": "Rick Astley",
+  "duration": 213,
+  "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+  "formats": [
+    {"format_id": "139", "ext": "m4a", "vcodec": "none", "acodec": "mp4a.40.5", "filesize": 1258291},
+    {"format_id": "160", "ext": "mp4", "height": 144, "vcodec": "avc1.4d400c", "acodec": "none", "filesize": 1887436},
+    {"format_id": "134", "ext": "mp4", "height": 360, "vcodec": "avc1.4d401e", "acodec": "none", "filesize": 8388608},
+    {"format_id": "136", "ext": "mp4", "height": 720, "vcodec": "avc1.4d401f", "acodec": "none", "filesize": 25165824},
+    {"format_id": "137", "ext": "mp4", "height": 1080, "vcodec": "avc1.640028", "acodec": "none", "filesize": 91226112},
+    {"format_id": "313", "ext": "webm", "height": 2160, "vcodec": "vp9", "acodec": "none", "filesize": 419430400}
+  ]
+}
