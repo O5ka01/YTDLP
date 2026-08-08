@@ -47,11 +47,16 @@ private func audioFormat() -> RawFormat {
 }
 
 @Test func filesizeLabelIsLocaleIndependent() {
-    // `ByteCountFormatter` renders "91,2 MB" in a German locale and "91.2 MB" in
-    // a US one, so the catalog must not use it. This test fails if someone swaps
-    // the deterministic formatter back out for the Foundation one.
-    let choices = FormatCatalog.choices(from: [videoFormat(height: 720, filesize: 2_500_000_000)])
-    #expect(choices[1].label == "720p · 2.5 GB")
+    // Guards against reintroducing `ByteCountFormatter`, which has no settable
+    // locale and follows the process locale. The GB case alone would not catch
+    // it — that formatter renders 2.5e9 as "2.5 GB" in a US locale, matching by
+    // coincidence. The MB case discriminates in every locale, because its
+    // adaptive precision yields "91.2 MB" / "91,2 MB" where we produce "91 MB".
+    let gigabyte = FormatCatalog.choices(from: [videoFormat(height: 720, filesize: 2_500_000_000)])
+    #expect(gigabyte[1].label == "720p · 2.5 GB")
+
+    let megabyte = FormatCatalog.choices(from: [videoFormat(height: 1080, filesize: 91_226_112)])
+    #expect(megabyte[1].label == "1080p · 91 MB")
 }
 
 @Test func audioOnlySourceOffersOnlyBest() {

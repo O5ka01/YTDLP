@@ -31,6 +31,8 @@ public enum FormatCatalog {
         return [best] + rest
     }
 
+    /// The size shown is the largest at that height across codecs, which is not
+    /// necessarily the variant yt-dlp ends up selecting.
     private static func label(height: Int, filesize: Int) -> String {
         let name = height >= 2160 ? "4K" : "\(height)p"
         guard filesize > 0 else { return name }
