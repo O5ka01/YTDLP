@@ -18,12 +18,55 @@ struct SystemProcessRunner: ProcessRunner {
             process.standardOutput = stdout
             process.standardError = stderr
 
-            forward(stdout, as: ProcessEvent.stdout, to: continuation)
-            forward(stderr, as: ProcessEvent.stderr, to: continuation)
+            let stdoutBuffer = LineBuffer()
+            let stderrBuffer = LineBuffer()
 
-            process.terminationHandler = { finished in
+            forward(stdout, buffer: stdoutBuffer, as: ProcessEvent.stdout, to: continuation)
+            forward(stderr, buffer: stderrBuffer, as: ProcessEvent.stderr, to: continuation)
+
+            /// Reads whatever is left in a pipe until EOF. Only safe to call once the
+            /// child has actually exited and closed its end of the pipe — otherwise
+            /// `availableData` can block waiting for a write end that is still open.
+            let drainRemaining: @Sendable (Pipe, LineBuffer, @escaping @Sendable (String) -> ProcessEvent) -> Void = { pipe, buffer, makeEvent in
+                while true {
+                    let data = pipe.fileHandleForReading.availableData
+                    if data.isEmpty { break }
+                    for line in buffer.append(data) {
+                        continuation.yield(makeEvent(line))
+                    }
+                }
+            }
+
+            /// Emits any trailing bytes that never got a terminating newline.
+            let flushTrailing: @Sendable (LineBuffer, @escaping @Sendable (String) -> ProcessEvent) -> Void = { buffer, makeEvent in
+                if let text = buffer.flushRemainder() {
+                    continuation.yield(makeEvent(text))
+                }
+            }
+
+            /// Tears down both pipes' readability handlers and flushes buffered text.
+            ///
+            /// - Parameter draining: `true` once the child has exited, so `availableData`
+            ///   is safe to loop to EOF (the write end is closed). Pass `false` on the
+            ///   launch-failure path, where the process never ran: the parent still
+            ///   holds the pipes' write ends open, so a read there would block forever.
+            ///   In that case no data can possibly exist to drain, so only the
+            ///   (necessarily empty) buffers are flushed.
+            let finishStreams: @Sendable (Bool) -> Void = { draining in
                 stdout.fileHandleForReading.readabilityHandler = nil
                 stderr.fileHandleForReading.readabilityHandler = nil
+
+                if draining {
+                    drainRemaining(stdout, stdoutBuffer, ProcessEvent.stdout)
+                    drainRemaining(stderr, stderrBuffer, ProcessEvent.stderr)
+                }
+
+                flushTrailing(stdoutBuffer, ProcessEvent.stdout)
+                flushTrailing(stderrBuffer, ProcessEvent.stderr)
+            }
+
+            process.terminationHandler = { finished in
+                finishStreams(true)
                 continuation.yield(.exit(code: finished.terminationStatus))
                 continuation.finish()
             }
@@ -39,6 +82,7 @@ struct SystemProcessRunner: ProcessRunner {
             do {
                 try process.run()
             } catch {
+                finishStreams(false)
                 continuation.yield(.stderr("ERROR: could not launch \(executable): \(error.localizedDescription)"))
                 continuation.yield(.exit(code: -1))
                 continuation.finish()
@@ -47,13 +91,14 @@ struct SystemProcessRunner: ProcessRunner {
     }
 
     /// yt-dlp emits progress with `--newline`, so splitting on newlines is safe.
-    /// A trailing partial line is buffered until its newline arrives.
+    /// A trailing partial line is buffered until its newline arrives, or until
+    /// `finishStreams` flushes it explicitly.
     private func forward(
         _ pipe: Pipe,
+        buffer: LineBuffer,
         as makeEvent: @escaping @Sendable (String) -> ProcessEvent,
         to continuation: AsyncStream<ProcessEvent>.Continuation
     ) {
-        let buffer = LineBuffer()
         pipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             guard !data.isEmpty else { return }
@@ -83,5 +128,16 @@ private final class LineBuffer: @unchecked Sendable {
             }
         }
         return lines
+    }
+
+    /// Returns any bytes that never got a trailing newline, clearing the buffer.
+    func flushRemainder() -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !pending.isEmpty else { return nil }
+        let text = String(data: pending, encoding: .utf8)?.trimmingCharacters(in: .whitespaces)
+        pending.removeAll()
+        guard let text, !text.isEmpty else { return nil }
+        return text
     }
 }
