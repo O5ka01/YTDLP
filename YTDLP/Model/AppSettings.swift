@@ -86,7 +86,7 @@ final class AppSettings {
             mode: mode,
             isPlaylist: isPlaylist,
             clip: clip,
-            subtitleLanguages: subtitlesEnabled ? languages : nil,
+            subtitleLanguages: subtitlesEnabled ? (languages.isEmpty ? nil : languages) : nil,
             cookieBrowser: cookiesEnabled ? cookieBrowser : nil,
             sponsorBlockCategories: sponsorBlockCategories,
             preferAppleCodecs: preferAppleCodecs,

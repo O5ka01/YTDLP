@@ -1,6 +1,7 @@
 import Foundation
 import YTDLPCore
 
+@MainActor
 @Observable
 final class DownloadJob: Identifiable {
     let id = UUID()
@@ -27,24 +28,44 @@ final class DownloadJob: Identifiable {
 /// Runs downloads one at a time and publishes their progress.
 ///
 /// Serial by design: yt-dlp already parallelises within a download via `-N`, so
-/// running several at once mostly competes for the same bandwidth.
+/// running several at once mostly competes for the same bandwidth. Serial
+/// execution is enforced with a FIFO `pending` queue plus an `isRunning` flag:
+/// `start` only ever enqueues work, and `drain()` is the single place that
+/// decides whether the next item may actually begin. `drain()` is called both
+/// when new work arrives and when a running job's `Task` finishes (success,
+/// failure, or cancellation alike), so `isRunning` can never get stuck `true` —
+/// every path that sets it `true` (inside `drain()`, right before starting a
+/// `Task`) is matched by exactly one path that sets it back `false` (in that
+/// same `Task`'s continuation, unconditionally, after `execute` returns for
+/// any reason), and that continuation always runs `drain()` again afterward.
 ///
 /// Marked `@MainActor`, for the same reason as `BinaryManager`: this is an
 /// `@Observable` singleton (`static let shared`) with mutable state
-/// (`jobs`, `tasks`) that SwiftUI reads directly, and it holds a `BinaryManager`
-/// reference. Isolating the whole type to the main actor makes the singleton,
-/// its state, and its `BinaryManager` access safe under Swift 6 strict
-/// concurrency without giving up `@Observable`. `DownloadJob` is isolated the
-/// same way: its `state` is only ever mutated from here, and it is captured by
-/// the unstructured `Task` each job runs in, so the whole chain stays on one
-/// actor with no hops needed to touch a job's state.
+/// (`jobs`, `tasks`, `pending`, `isRunning`) that SwiftUI reads directly, and
+/// it holds a `BinaryManager` reference. Isolating the whole type to the main
+/// actor makes the singleton, its state, and its `BinaryManager` access safe
+/// under Swift 6 strict concurrency without giving up `@Observable`.
+/// `DownloadJob` is explicitly `@MainActor` too, so any future non-isolated
+/// caller gets a compile error instead of silently inheriting isolation.
 @MainActor
 @Observable
 final class DownloadQueue {
     static let shared = DownloadQueue()
 
+    /// One item of queued-but-not-yet-started work: everything `execute`
+    /// needs, captured at `start()` time so `drain()` can kick it off later
+    /// without recomputing anything.
+    private struct QueuedWork {
+        let job: DownloadJob
+        let executable: String
+        let arguments: [String]
+        let isClip: Bool
+    }
+
     private(set) var jobs: [DownloadJob] = []
     private var tasks: [UUID: Task<Void, Never>] = [:]
+    private var pending: [QueuedWork] = []
+    private var isRunning = false
 
     var runner: any ProcessRunner = SystemProcessRunner()
     var binaries: BinaryManager = .shared
@@ -55,41 +76,64 @@ final class DownloadQueue {
     func start(url: String, options: DownloadOptions, title: String) -> DownloadJob {
         let job = DownloadJob(title: title, url: url)
 
-        // yt-dlp hands clipping entirely to ffmpeg once `--download-sections` is
-        // set: it prints ffmpeg's banner instead of any `dl:` progress lines, so
-        // `ProgressParser` never sees anything to report for a clipped job. Left
-        // at `.waiting`, the UI would look hung for the whole download. Start it
-        // in an indeterminate "Clipping…" state instead so it visibly shows
-        // activity right away.
-        if options.clip != nil {
-            job.state = .processing("Clipping…")
-        }
-        jobs.append(job)
-
         guard let executable = binaries.ytDlpPath else {
             job.state = .failed(
                 message: "yt-dlp wasn't found. Install it with:  brew install yt-dlp",
                 details: ""
             )
+            // Not enqueued: there is nothing runnable to queue.
+            jobs.append(job)
             return job
         }
 
         let resolved = OptionResolver.resolve(options)
         let arguments = ArgumentBuilder.argv(url: url, options: resolved)
 
-        tasks[job.id] = Task { [weak self] in
-            await self?.execute(job: job, executable: executable, arguments: arguments)
-        }
+        jobs.append(job)
+        pending.append(
+            QueuedWork(job: job, executable: executable, arguments: arguments, isClip: options.clip != nil)
+        )
+        drain()
         return job
     }
 
+    /// Starts the next queued job, but only if nothing is currently running.
+    /// Called after every enqueue and after every job finishes (in any way),
+    /// so the queue keeps making progress without ever running two jobs at
+    /// once.
+    private func drain() {
+        guard !isRunning, !pending.isEmpty else { return }
+        let work = pending.removeFirst()
+
+        // yt-dlp hands clipping entirely to ffmpeg once `--download-sections`
+        // is set: it prints ffmpeg's banner instead of any `dl:` progress
+        // lines, so `ProgressParser` never sees anything to report for a
+        // clipped job. Left at `.waiting`, the UI would look hung for the
+        // whole download. Switch to an indeterminate "Clipping…" state right
+        // as the job actually begins (not when it's merely enqueued) so it
+        // visibly shows activity without lying about a job still waiting
+        // behind another download.
+        if work.isClip {
+            work.job.state = .processing("Clipping…")
+        }
+
+        isRunning = true
+        tasks[work.job.id] = Task { [weak self] in
+            await self?.execute(job: work.job, executable: work.executable, arguments: work.arguments)
+            self?.isRunning = false
+            self?.drain()
+        }
+    }
+
     func cancel(_ job: DownloadJob) {
+        pending.removeAll { $0.job.id == job.id }
         tasks[job.id]?.cancel()
         tasks[job.id] = nil
         jobs.removeAll { $0.id == job.id }
     }
 
     func remove(_ job: DownloadJob) {
+        pending.removeAll { $0.job.id == job.id }
         tasks[job.id] = nil
         jobs.removeAll { $0.id == job.id }
     }
