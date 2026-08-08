@@ -61,3 +61,70 @@ private func argv(_ transform: (inout DownloadOptions) -> Void = { _ in }) -> [S
 @Test func singleVideoOptsOutOfPlaylists() {
     #expect(argv().contains("--no-playlist"))
 }
+
+@Test func sponsorBlockJoinsCategoriesWithCommas() {
+    let result = argv { $0.sponsorBlockCategories = ["sponsor", "selfpromo", "intro"] }
+    #expect(contains(result, ["--sponsorblock-remove", "sponsor,selfpromo,intro"]))
+}
+
+@Test func noSponsorBlockArgumentWhenNoCategories() {
+    #expect(!argv().contains("--sponsorblock-remove"))
+}
+
+@Test func clipAddsSectionAndKeyframeFlags() {
+    let result = argv { $0.clip = TimeRange(start: "00:10:00", end: "00:15:00") }
+    #expect(contains(result, ["--download-sections", "*00:10:00-00:15:00"]))
+    #expect(result.contains("--force-keyframes-at-cuts"))
+}
+
+@Test func subtitlesJoinLanguagesAndConvertToSrt() {
+    let result = argv { $0.subtitleLanguages = ["en", "de"] }
+    #expect(result.contains("--write-subs"))
+    #expect(result.contains("--write-auto-subs"))
+    #expect(contains(result, ["--sub-langs", "en,de"]))
+    #expect(result.contains("--embed-subs"))
+    #expect(contains(result, ["--convert-subs", "srt"]))
+}
+
+@Test func emptySubtitleLanguageListEmitsNothing() {
+    #expect(!argv { $0.subtitleLanguages = [] }.contains("--write-subs"))
+}
+
+@Test func cookiesNameTheBrowser() {
+    #expect(contains(argv { $0.cookieBrowser = "safari" }, ["--cookies-from-browser", "safari"]))
+}
+
+@Test func playlistReplacesOutputTemplateAndAddsArchive() {
+    let result = argv { $0.isPlaylist = true }
+    #expect(result.contains("--yes-playlist"))
+    #expect(!result.contains("--no-playlist"))
+    #expect(contains(result, ["--download-archive", "/App/archive.txt"]))
+    #expect(contains(result, ["-o", "%(playlist_title)s/%(playlist_index)03d - %(title)s.%(ext)s"]))
+    #expect(result.filter { $0 == "-o" }.count == 1)
+}
+
+@Test func clipWinsOverSponsorBlockInFinalArgv() {
+    let result = argv {
+        $0.sponsorBlockCategories = ["sponsor"]
+        $0.clip = TimeRange(start: "00:01:00", end: "00:02:00")
+    }
+    #expect(!result.contains("--sponsorblock-remove"))
+    #expect(result.contains("--download-sections"))
+}
+
+@Test func audioModeDropsSubtitlesInFinalArgv() {
+    let result = argv {
+        $0.mode = .audio(format: .mp3)
+        $0.subtitleLanguages = ["en"]
+    }
+    #expect(!result.contains("--write-subs"))
+    #expect(!result.contains("--embed-subs"))
+}
+
+@Test func playlistDropsClipInFinalArgv() {
+    let result = argv {
+        $0.isPlaylist = true
+        $0.clip = TimeRange(start: "00:01:00", end: "00:02:00")
+    }
+    #expect(!result.contains("--download-sections"))
+}
