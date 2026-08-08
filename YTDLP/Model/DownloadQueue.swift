@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import YTDLPCore
 
@@ -7,6 +8,12 @@ final class DownloadJob: Identifiable {
     let id = UUID()
     let title: String
     let url: String
+    /// The folder that was actually passed to yt-dlp for this job, captured
+    /// at `start()` time from the resolved options. `AppSettings.downloadFolder`
+    /// can change while this job is in flight; completion notifications and
+    /// "Show in Finder" must keep pointing at where the file actually landed,
+    /// not wherever the live setting has since moved to.
+    let downloadFolder: String
 
     enum State: Equatable {
         case waiting
@@ -19,9 +26,10 @@ final class DownloadJob: Identifiable {
 
     var state: State = .waiting
 
-    init(title: String, url: String) {
+    init(title: String, url: String, downloadFolder: String) {
         self.title = title
         self.url = url
+        self.downloadFolder = downloadFolder
     }
 }
 
@@ -74,7 +82,7 @@ final class DownloadQueue {
 
     @discardableResult
     func start(url: String, options: DownloadOptions, title: String) -> DownloadJob {
-        let job = DownloadJob(title: title, url: url)
+        let job = DownloadJob(title: title, url: url, downloadFolder: options.downloadFolder)
 
         guard let executable = binaries.ytDlpPath else {
             job.state = .failed(
@@ -130,12 +138,57 @@ final class DownloadQueue {
         tasks[job.id]?.cancel()
         tasks[job.id] = nil
         jobs.removeAll { $0.id == job.id }
+        // A cancelled job may have been the only thing contributing to the
+        // aggregate, so the badge needs to drop immediately rather than wait
+        // for the next progress line from someone else.
+        updateDockTile()
     }
 
     func remove(_ job: DownloadJob) {
         pending.removeAll { $0.job.id == job.id }
         tasks[job.id] = nil
         jobs.removeAll { $0.id == job.id }
+    }
+
+    /// Aggregate progress across active jobs, or `nil` when nothing is running.
+    private var aggregateProgress: Double? {
+        let active = jobs.compactMap { job -> Double? in
+            if case .downloading(let percent, _, _) = job.state { return percent }
+            if case .processing = job.state { return 100 }
+            return nil
+        }
+        guard !active.isEmpty else { return nil }
+        return active.reduce(0, +) / Double(active.count)
+    }
+
+    private func updateDockTile() {
+        let tile = NSApp.dockTile
+        if let progress = aggregateProgress {
+            tile.badgeLabel = "\(Int(progress))%"
+        } else {
+            tile.badgeLabel = nil
+        }
+        tile.display()
+    }
+
+    /// The spec's "Done" state clears itself; this is that, per row.
+    ///
+    /// This runs on a plain detached-by-time `Task`, entirely separate from
+    /// the `tasks` dictionary and `isRunning` flag that `drain()` owns. By
+    /// the time a job reaches `.finished`, `execute(job:executable:arguments:)`
+    /// has already cleared its entry from `tasks` and `drain()` has already
+    /// moved on — `remove(_:)` here only ever touches `pending` (a no-op,
+    /// since a finished job was already dequeued) and the `jobs` array that
+    /// SwiftUI reads. It can never observe or mutate `isRunning`, so a slow
+    /// or delayed cleanup can't stall, skip, or double-start anything the
+    /// serial queue is doing.
+    private func scheduleCleanup(of job: DownloadJob) {
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(8))
+            guard case .finished = job.state else { return }
+            self?.remove(job)
+            self?.updateDockTile()
+        }
     }
 
     private func execute(job: DownloadJob, executable: String, arguments: [String]) async {
@@ -179,16 +232,19 @@ final class DownloadQueue {
             // don't leave the job stuck at whatever state it last had.
             let raw = stderr.joined(separator: "\n")
             job.state = .failed(message: ErrorMapper.message(forStderr: raw), details: raw)
+            updateDockTile()
             return
         }
 
         if exitCode == 0 {
             job.state = .finished
             onFinished?(job)
+            scheduleCleanup(of: job)
         } else {
             let raw = stderr.joined(separator: "\n")
             job.state = .failed(message: ErrorMapper.message(forStderr: raw), details: raw)
         }
+        updateDockTile()
     }
 
     private func apply(_ event: ProgressEvent, to job: DownloadJob) {
@@ -200,5 +256,6 @@ final class DownloadQueue {
         case .retrying:
             job.state = .retrying
         }
+        updateDockTile()
     }
 }

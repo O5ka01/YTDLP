@@ -50,7 +50,7 @@ struct QueueList: View {
                 Label("Done", systemImage: "checkmark.circle.fill")
                     .font(.caption).foregroundStyle(.green)
                 Button("Show in Finder") {
-                    Notifier.shared.reveal(folder: AppSettings.shared.downloadFolder)
+                    Notifier.shared.reveal(folder: job.downloadFolder)
                 }
                 .buttonStyle(.link)
                 .font(.caption)

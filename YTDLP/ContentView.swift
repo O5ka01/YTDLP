@@ -88,14 +88,16 @@ struct ContentView: View {
             }
 
             HStack(spacing: 10) {
-                Picker("", selection: $selectedHeight) {
-                    ForEach(choices) { choice in
-                        Text(choice.label).tag(choice.maxHeight)
+                if !choices.isEmpty {
+                    Picker("", selection: $selectedHeight) {
+                        ForEach(choices) { choice in
+                            Text(choice.label).tag(choice.maxHeight)
+                        }
                     }
+                    .labelsHidden()
+                    .frame(maxWidth: 180)
+                    .disabled(audioOnly || choices.count <= 1)
                 }
-                .labelsHidden()
-                .frame(maxWidth: 180)
-                .disabled(audioOnly || choices.count <= 1)
 
                 Button(showOptions ? "Options ⌄" : "Options ›") {
                     withAnimation(.snappy(duration: 0.15)) { showOptions.toggle() }
@@ -127,10 +129,16 @@ struct ContentView: View {
         }
         .padding(16)
         .frame(width: 460)
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let dropped = urls.first, dropped.scheme?.hasPrefix("http") == true else { return false }
+            urlText = dropped.absoluteString
+            return true
+        }
         .task {
+            AppDelegate.openURLHandler = { urlText = $0 }
             Notifier.shared.requestAuthorization()
             queue.onFinished = { job in
-                Notifier.shared.notifyFinished(title: job.title, folder: settings.downloadFolder)
+                Notifier.shared.notifyFinished(title: job.title, folder: job.downloadFolder)
             }
             do {
                 try await binaries.prepare()
