@@ -7,5 +7,9 @@ struct YTDLPApp: App {
             ContentView()
         }
         .windowResizability(.contentSize)
+
+        Settings {
+            SettingsView()
+        }
     }
 }
