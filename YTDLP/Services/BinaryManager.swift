@@ -88,10 +88,18 @@ final class BinaryManager {
         version = await capture(arguments: ["--version"]) ?? version
     }
 
-    /// Returns the first candidate path that exists and is executable, or nil.
+    /// Returns the first candidate path that exists, is a regular file (not a
+    /// directory — `isExecutableFile(atPath:)` alone returns true for any
+    /// directory with the traversal bit set, e.g. a broken Cellar symlink or
+    /// a partial reinstall), and is executable. Otherwise nil.
     private static func resolve(candidates: [String]) -> String? {
         let fileManager = FileManager.default
-        return candidates.first { fileManager.isExecutableFile(atPath: $0) }
+        return candidates.first { path in
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: path, isDirectory: &isDirectory),
+                  !isDirectory.boolValue else { return false }
+            return fileManager.isExecutableFile(atPath: path)
+        }
     }
 
     private func capture(arguments: [String]) async -> String? {
