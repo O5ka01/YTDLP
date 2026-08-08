@@ -39,9 +39,15 @@ struct MediaProbe {
             }
         }
 
+        try Task.checkCancellation()
+
         guard exitCode == 0 else {
             throw ProbeError(message: ErrorMapper.message(forStderr: stderr.joined(separator: "\n")))
         }
-        return try MediaInfo.decode(from: Data(stdout.joined().utf8))
+        do {
+            return try MediaInfo.decode(from: Data(stdout.joined().utf8))
+        } catch {
+            throw ProbeError(message: "Couldn't read the video details.")
+        }
     }
 }
