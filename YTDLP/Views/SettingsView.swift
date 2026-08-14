@@ -70,8 +70,12 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420)
-        .fixedSize(horizontal: false, vertical: true)
+        // An explicit height rather than `fixedSize(vertical:)`: that modifier
+        // hands the Form its full ideal height and suppresses its own
+        // scrolling, so the Settings window grew with the content until the
+        // bottom sat off-screen. A fixed height fits any display and lets the
+        // Form scroll again.
+        .frame(width: 420, height: 560)
     }
 
     @ViewBuilder
