@@ -1,34 +1,31 @@
 import Testing
 @testable import YTDLPCore
 
+/// Most rules don't depend on the configured browser; this keeps them readable.
+private func message(_ stderr: String, browser: String = "safari") -> String {
+    ErrorMapper.message(forStderr: stderr, cookieBrowser: browser)
+}
+
 @Test func ageRestrictionSuggestsCookies() {
     let stderr = "ERROR: [youtube] abc: Sign in to confirm your age. This video may be inappropriate for some users."
-    #expect(ErrorMapper.message(forStderr: stderr)
-            == "This video needs a login — try turning on Use Safari cookies.")
+    #expect(message(stderr) == "This video needs a login — try turning on Use Safari cookies.")
 }
 
 @Test func membersOnlyAndPrivateAlsoSuggestCookies() {
-    #expect(ErrorMapper.message(forStderr: "ERROR: Join this channel to get access to members-only content")
+    #expect(message("ERROR: Join this channel to get access to members-only content")
             == "This video needs a login — try turning on Use Safari cookies.")
-    #expect(ErrorMapper.message(forStderr: "ERROR: [youtube] abc: Private video. Sign in if you've been granted access")
+    #expect(message("ERROR: [youtube] abc: Private video. Sign in if you've been granted access")
             == "This video needs a login — try turning on Use Safari cookies.")
 }
 
-@Test func unavailableVideoIsReportedPlainly() {
-    #expect(ErrorMapper.message(forStderr: "ERROR: [youtube] abc: Video unavailable")
-            == "This video isn't available.")
-    #expect(ErrorMapper.message(forStderr: "ERROR: This video has been removed by the uploader")
-            == "This video isn't available.")
-}
-
-@Test func unsupportedSiteIsNamed() {
-    #expect(ErrorMapper.message(forStderr: "ERROR: Unsupported URL: https://example.com/x")
-            == "yt-dlp doesn't recognise this site.")
-}
-
-@Test func missingFfmpegSuggestsHomebrew() {
-    #expect(ErrorMapper.message(forStderr: "ERROR: ffmpeg not found. Please install")
-            == "ffmpeg wasn't found. Install it with:  brew install ffmpeg")
+@Test func loginHintNamesTheConfiguredBrowserRatherThanAlwaysSafari() {
+    // The browser is a setting, so the hint has to follow it — telling a
+    // Firefox user to turn on "Use Safari cookies" names a control that
+    // doesn't exist in their Options drawer.
+    #expect(message("ERROR: [youtube] abc: Private video. Sign in if you", browser: "firefox")
+            == "This video needs a login — try turning on Use Firefox cookies.")
+    #expect(message("ERROR: [youtube] abc: Private video. Sign in if you", browser: "brave")
+            == "This video needs a login — try turning on Use Brave cookies.")
 }
 
 @Test func missingJavaScriptRuntimeSuggestsHomebrew() {
@@ -39,19 +36,34 @@ import Testing
         by default; to use another runtime add  --js-runtimes RUNTIME[:PATH]  to your command/config.
         ERROR: unable to download video data: HTTP Error 403: Forbidden
         """
-    #expect(ErrorMapper.message(forStderr: stderr)
+    #expect(message(stderr)
             == "YouTube needs a JavaScript runtime. Install it with:  brew install deno")
+}
+
+@Test func unavailableVideoIsReportedPlainly() {
+    #expect(message("ERROR: [youtube] abc: Video unavailable") == "This video isn't available.")
+    #expect(message("ERROR: This video has been removed by the uploader") == "This video isn't available.")
+}
+
+@Test func unsupportedSiteIsNamed() {
+    #expect(message("ERROR: Unsupported URL: https://example.com/x")
+            == "yt-dlp doesn't recognise this site.")
+}
+
+@Test func missingFfmpegSuggestsHomebrew() {
+    #expect(message("ERROR: ffmpeg not found. Please install")
+            == "ffmpeg wasn't found. Install it with:  brew install ffmpeg")
 }
 
 @Test func unrecognisedErrorFallsBackToFirstNonEmptyLine() {
     let stderr = "\n\nWARNING: something\nERROR: some brand new failure mode\n"
-    #expect(ErrorMapper.message(forStderr: stderr) == "WARNING: something")
+    #expect(message(stderr) == "WARNING: something")
 }
 
 @Test func emptyStderrStillProducesAMessage() {
-    #expect(ErrorMapper.message(forStderr: "   \n\n") == "The download failed for an unknown reason.")
+    #expect(message("   \n\n") == "The download failed for an unknown reason.")
 }
 
 @Test func matchingIsCaseInsensitive() {
-    #expect(ErrorMapper.message(forStderr: "error: VIDEO UNAVAILABLE") == "This video isn't available.")
+    #expect(message("error: VIDEO UNAVAILABLE") == "This video isn't available.")
 }

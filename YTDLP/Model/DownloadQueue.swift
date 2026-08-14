@@ -231,7 +231,10 @@ final class DownloadQueue {
             // The stream ended without an exit code and we weren't cancelled —
             // don't leave the job stuck at whatever state it last had.
             let raw = stderr.joined(separator: "\n")
-            job.state = .failed(message: ErrorMapper.message(forStderr: raw), details: raw)
+            job.state = .failed(
+                message: ErrorMapper.message(forStderr: raw, cookieBrowser: AppSettings.shared.cookieBrowser),
+                details: raw
+            )
             updateDockTile()
             return
         }
@@ -242,7 +245,10 @@ final class DownloadQueue {
             scheduleCleanup(of: job)
         } else {
             let raw = stderr.joined(separator: "\n")
-            job.state = .failed(message: ErrorMapper.message(forStderr: raw), details: raw)
+            job.state = .failed(
+                message: ErrorMapper.message(forStderr: raw, cookieBrowser: AppSettings.shared.cookieBrowser),
+                details: raw
+            )
         }
         updateDockTile()
     }

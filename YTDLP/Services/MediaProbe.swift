@@ -17,6 +17,10 @@ struct MediaProbe {
     /// extractor falls back to a client that reports a reduced format list,
     /// which would leave the quality menu short of the real options.
     let jsRuntimePath: String?
+    /// Only used to phrase a failure message. The probe itself never sends
+    /// cookies — but it is where an age-gated or private video first fails,
+    /// so the hint it produces has to name the browser Settings is set to.
+    let cookieBrowser: String
 
     struct ProbeError: LocalizedError {
         let message: String
@@ -50,7 +54,10 @@ struct MediaProbe {
         try Task.checkCancellation()
 
         guard exitCode == 0 else {
-            throw ProbeError(message: ErrorMapper.message(forStderr: stderr.joined(separator: "\n")))
+            throw ProbeError(message: ErrorMapper.message(
+                forStderr: stderr.joined(separator: "\n"),
+                cookieBrowser: cookieBrowser
+            ))
         }
         do {
             return try MediaInfo.decode(from: Data(stdout.joined().utf8))

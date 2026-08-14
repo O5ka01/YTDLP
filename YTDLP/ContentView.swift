@@ -197,6 +197,7 @@ struct ContentView: View {
         }
 
         let jsRuntimePath = binaries.jsRuntimePath
+        let cookieBrowser = settings.cookieBrowser
 
         isProbing = true
         probeTask = Task {
@@ -206,7 +207,8 @@ struct ContentView: View {
                 let probed = try await MediaProbe(
                     ytDlpPath: ytDlpPath,
                     ffmpegPath: ffmpegPath,
-                    jsRuntimePath: jsRuntimePath
+                    jsRuntimePath: jsRuntimePath,
+                    cookieBrowser: cookieBrowser
                 ).probe(url: trimmed)
                 guard !Task.isCancelled else { return }
                 info = probed
