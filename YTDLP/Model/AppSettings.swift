@@ -68,14 +68,16 @@ final class AppSettings {
     /// hint `BinaryManager.BinaryError` produces), and only calls this method
     /// with a concrete path. This mirrors how `MediaProbe` already takes
     /// resolved `ytDlpPath`/`ffmpegPath` strings instead of a `BinaryManager`
-    /// reference.
+    /// reference. `jsRuntimePath` is passed the same way, and stays optional
+    /// all the way down: a missing deno is not a reason to refuse a download.
     func makeOptions(
         mode: MediaMode,
         isPlaylist: Bool,
         clip: TimeRange?,
         subtitlesEnabled: Bool,
         cookiesEnabled: Bool,
-        ffmpegPath: String
+        ffmpegPath: String,
+        jsRuntimePath: String?
     ) -> DownloadOptions {
         let languages = subtitleLanguages
             .split(separator: ",")
@@ -93,6 +95,7 @@ final class AppSettings {
             concurrentFragments: concurrentFragments,
             downloadFolder: downloadFolder,
             ffmpegPath: ffmpegPath,
+            jsRuntimePath: jsRuntimePath,
             archivePath: BinaryManager.shared.archivePath
         )
     }

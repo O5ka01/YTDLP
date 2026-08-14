@@ -20,6 +20,12 @@ public enum ArgumentBuilder {
             "--embed-chapters",
         ]
 
+        // deno is the only runtime yt-dlp enables by default, and the only one
+        // `BinaryManager` looks for, so the runtime name is fixed here.
+        if let jsRuntimePath = options.jsRuntimePath {
+            argv += ["--js-runtimes", "deno:\(jsRuntimePath)"]
+        }
+
         argv += outputArguments(options)
         argv += modeArguments(options)
         argv += featureArguments(options)

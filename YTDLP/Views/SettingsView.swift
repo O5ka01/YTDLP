@@ -54,6 +54,10 @@ struct SettingsView: View {
                 LabeledContent("yt-dlp", value: binaries.version)
                 pathRow(label: "yt-dlp path", path: binaries.ytDlpPath, installHint: "brew install yt-dlp")
                 pathRow(label: "ffmpeg path", path: binaries.ffmpegPath, installHint: "brew install ffmpeg")
+                pathRow(label: "deno path", path: binaries.jsRuntimePath, installHint: "brew install deno")
+                Text("deno runs YouTube's player JavaScript. Without it some formats go missing and downloads can fail with HTTP 403.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 Button("Refresh") {
                     Task { await binaries.refreshVersion() }

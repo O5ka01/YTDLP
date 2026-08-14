@@ -41,6 +41,14 @@ public struct DownloadOptions: Equatable, Sendable {
     public var concurrentFragments: Int
     public var downloadFolder: String
     public var ffmpegPath: String
+    /// Absolute path to a deno binary, or `nil` if none is installed. YouTube
+    /// extraction needs a JavaScript runtime to decipher format URLs; without
+    /// one yt-dlp falls back to a client whose URLs are often rejected with
+    /// HTTP 403. yt-dlp finds deno by searching `PATH`, which doesn't work
+    /// here — a Finder-launched app inherits launchd's bare
+    /// `/usr/bin:/bin:/usr/sbin:/sbin`, so Homebrew's bin directory is absent.
+    /// Naming the path explicitly matches how `ffmpegPath` is handled.
+    public var jsRuntimePath: String?
     public var archivePath: String
 
     public init(
@@ -54,6 +62,7 @@ public struct DownloadOptions: Equatable, Sendable {
         concurrentFragments: Int = 4,
         downloadFolder: String,
         ffmpegPath: String,
+        jsRuntimePath: String? = nil,
         archivePath: String
     ) {
         self.mode = mode
@@ -66,6 +75,7 @@ public struct DownloadOptions: Equatable, Sendable {
         self.concurrentFragments = concurrentFragments
         self.downloadFolder = downloadFolder
         self.ffmpegPath = ffmpegPath
+        self.jsRuntimePath = jsRuntimePath
         self.archivePath = archivePath
     }
 

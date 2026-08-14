@@ -31,6 +31,18 @@ import Testing
             == "ffmpeg wasn't found. Install it with:  brew install ffmpeg")
 }
 
+@Test func missingJavaScriptRuntimeSuggestsHomebrew() {
+    // yt-dlp warns on stderr and then fails further down with a 403; the
+    // warning is the actionable half, so it has to win over the ERROR line.
+    let stderr = """
+        WARNING: [youtube] No supported JavaScript runtime could be found. Only deno is enabled \
+        by default; to use another runtime add  --js-runtimes RUNTIME[:PATH]  to your command/config.
+        ERROR: unable to download video data: HTTP Error 403: Forbidden
+        """
+    #expect(ErrorMapper.message(forStderr: stderr)
+            == "YouTube needs a JavaScript runtime. Install it with:  brew install deno")
+}
+
 @Test func unrecognisedErrorFallsBackToFirstNonEmptyLine() {
     let stderr = "\n\nWARNING: something\nERROR: some brand new failure mode\n"
     #expect(ErrorMapper.message(forStderr: stderr) == "WARNING: something")

@@ -49,7 +49,8 @@ struct ContentView: View {
             clip: clipEnabled ? TimeRange(start: clipStart, end: clipEnd) : nil,
             subtitlesEnabled: subtitlesEnabled,
             cookiesEnabled: cookiesEnabled,
-            ffmpegPath: ffmpegPath
+            ffmpegPath: ffmpegPath,
+            jsRuntimePath: binaries.jsRuntimePath
         )
     }
 
@@ -195,12 +196,18 @@ struct ContentView: View {
             return
         }
 
+        let jsRuntimePath = binaries.jsRuntimePath
+
         isProbing = true
         probeTask = Task {
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled else { return }
             do {
-                let probed = try await MediaProbe(ytDlpPath: ytDlpPath, ffmpegPath: ffmpegPath).probe(url: trimmed)
+                let probed = try await MediaProbe(
+                    ytDlpPath: ytDlpPath,
+                    ffmpegPath: ffmpegPath,
+                    jsRuntimePath: jsRuntimePath
+                ).probe(url: trimmed)
                 guard !Task.isCancelled else { return }
                 info = probed
                 choices = FormatCatalog.choices(from: probed.formats)

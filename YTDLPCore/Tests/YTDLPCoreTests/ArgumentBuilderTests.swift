@@ -27,6 +27,17 @@ private func argv(_ transform: (inout DownloadOptions) -> Void = { _ in }) -> [S
     #expect(result.suffix(2) == ["--", "URL"])
 }
 
+@Test func resolvedJavaScriptRuntimeIsNamedWithItsAbsolutePath() {
+    // The app launches yt-dlp from Finder, where PATH is launchd's
+    // /usr/bin:/bin:/usr/sbin:/sbin — so deno is never found by name.
+    #expect(contains(argv { $0.jsRuntimePath = "/opt/homebrew/bin/deno" },
+                     ["--js-runtimes", "deno:/opt/homebrew/bin/deno"]))
+}
+
+@Test func noJavaScriptRuntimeArgumentWhenNoneWasResolved() {
+    #expect(!argv { $0.jsRuntimePath = nil }.contains("--js-runtimes"))
+}
+
 @Test func urlIsLastBehindADashDashSoItIsNeverParsedAsAFlagOrFlagValue() {
     #expect(argv { $0.cookieBrowser = "safari" }.suffix(2) == ["--", "URL"])
 }

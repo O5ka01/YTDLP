@@ -4,6 +4,10 @@ import Foundation
 /// The raw text is still shown behind the UI's "Details" disclosure.
 public enum ErrorMapper {
     private static let rules: [(needles: [String], message: String)] = [
+        // First, because this arrives as a WARNING alongside a downstream
+        // ERROR (usually a 403) that says nothing actionable on its own.
+        (["no supported javascript runtime"],
+         "YouTube needs a JavaScript runtime. Install it with:  brew install deno"),
         (["sign in to confirm your age", "members-only", "private video", "sign in if you"],
          "This video needs a login — try turning on Use Safari cookies."),
         (["video unavailable", "has been removed", "no longer available"],

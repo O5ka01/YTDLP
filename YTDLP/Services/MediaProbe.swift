@@ -12,6 +12,11 @@ struct MediaProbe {
     var runner: any ProcessRunner = SystemProcessRunner()
     let ytDlpPath: String
     let ffmpegPath: String
+    /// See `BinaryManager.jsRuntimePath`. The probe needs it for the same
+    /// reason the download does: without a JavaScript runtime YouTube's
+    /// extractor falls back to a client that reports a reduced format list,
+    /// which would leave the quality menu short of the real options.
+    let jsRuntimePath: String?
 
     struct ProbeError: LocalizedError {
         let message: String
@@ -23,14 +28,16 @@ struct MediaProbe {
         var stderr: [String] = []
         var exitCode: Int32 = -1
 
-        let arguments = [
+        var arguments = [
             "-J",
             "--no-warnings",
             "--flat-playlist",
             "--ffmpeg-location", ffmpegPath,
-            "--",
-            url,
         ]
+        if let jsRuntimePath {
+            arguments += ["--js-runtimes", "deno:\(jsRuntimePath)"]
+        }
+        arguments += ["--", url]
 
         for await event in runner.run(executable: ytDlpPath, arguments: arguments) {
             switch event {

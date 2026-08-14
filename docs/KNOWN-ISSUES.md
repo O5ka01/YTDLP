@@ -19,6 +19,11 @@ or security issue.
   downloaded nothing, and reports "Done". There is no UI to clear the archive; delete
   `~/Library/Application Support/YTDLP/archive.txt` by hand.
 
+- **A missing deno shows in red like a fatal error.** deno is optional — only sites whose
+  extractor runs JavaScript need it — but `SettingsView.pathRow` has one style for "not found",
+  so its row reads as urgently as a missing ffmpeg. The caption underneath explains the real
+  consequence.
+
 - **Tool paths are resolved once at launch.** Running `brew uninstall yt-dlp` while the app is
   open produces a raw launch error rather than the friendly install message. Relaunch to recover.
 

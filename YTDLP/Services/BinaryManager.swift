@@ -1,7 +1,7 @@
 import Foundation
 import YTDLPCore
 
-/// Locates the yt-dlp and ffmpeg executables installed via Homebrew.
+/// Locates the yt-dlp, ffmpeg and deno executables installed via Homebrew.
 ///
 /// Earlier revisions bundled yt-dlp and ffmpeg inside the app and copied
 /// yt-dlp into Application Support so it could self-update with `-U` without
@@ -33,10 +33,20 @@ final class BinaryManager {
     /// prefix first, then the Intel Homebrew prefix.
     private static let ytDlpCandidates = ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"]
     private static let ffmpegCandidates = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"]
+    private static let denoCandidates = ["/opt/homebrew/bin/deno", "/usr/local/bin/deno"]
 
     /// Resolved once in `prepare()`; nil until then (or if the tool wasn't found).
     private(set) var ytDlpPath: String?
     private(set) var ffmpegPath: String?
+
+    /// deno, if installed. Unlike the other two this is *not* required: it is
+    /// only needed for sites whose extractor runs JavaScript (in practice,
+    /// YouTube), so a missing deno degrades those downloads rather than
+    /// stopping the app. yt-dlp would find it on its own via `PATH`, but a
+    /// Finder-launched app inherits launchd's bare
+    /// `/usr/bin:/bin:/usr/sbin:/sbin`, which excludes both Homebrew prefixes —
+    /// so the path is resolved here and passed explicitly, as ffmpeg's is.
+    private(set) var jsRuntimePath: String?
 
     private let supportDirectory: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -62,11 +72,12 @@ final class BinaryManager {
         }
     }
 
-    /// Resolves yt-dlp and ffmpeg from their known Homebrew locations and
-    /// records yt-dlp's version. Safe to call on every launch; re-resolves
+    /// Resolves yt-dlp, ffmpeg and deno from their known Homebrew locations
+    /// and records yt-dlp's version. Safe to call on every launch; re-resolves
     /// the paths each time in case Homebrew's install state changed, but
-    /// downstream code should read the stored `ytDlpPath`/`ffmpegPath`
-    /// rather than re-searching.
+    /// downstream code should read the stored paths rather than re-searching.
+    /// Throws only for the two required tools — a missing deno is reported in
+    /// Settings and left to degrade the download it affects.
     func prepare() async throws {
         try FileManager.default.createDirectory(at: supportDirectory, withIntermediateDirectories: true)
 
@@ -74,6 +85,7 @@ final class BinaryManager {
         let resolvedFfmpeg = Self.resolve(candidates: Self.ffmpegCandidates)
         ytDlpPath = resolvedYtDlp
         ffmpegPath = resolvedFfmpeg
+        jsRuntimePath = Self.resolve(candidates: Self.denoCandidates)
 
         guard resolvedYtDlp != nil, resolvedFfmpeg != nil else {
             throw BinaryError.missing(ytDlp: resolvedYtDlp == nil, ffmpeg: resolvedFfmpeg == nil)
