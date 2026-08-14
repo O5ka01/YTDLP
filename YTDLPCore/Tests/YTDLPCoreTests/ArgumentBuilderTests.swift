@@ -69,6 +69,14 @@ private func argv(_ transform: (inout DownloadOptions) -> Void = { _ in }) -> [S
     #expect(!result.contains("-S"))
 }
 
+@Test func audioFormatArgumentIsTheYtDlpNameNotTheMenuLabel() {
+    // The menu shows "AAC (m4a)"; yt-dlp must still receive "m4a".
+    for format in AudioFormat.allCases {
+        #expect(contains(argv { $0.mode = .audio(format: format) },
+                         ["--audio-format", format.rawValue]))
+    }
+}
+
 @Test func singleVideoOptsOutOfPlaylists() {
     #expect(argv().contains("--no-playlist"))
 }

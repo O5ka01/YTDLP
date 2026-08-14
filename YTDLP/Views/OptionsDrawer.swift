@@ -19,7 +19,7 @@ struct OptionsDrawer: View {
             Toggle("Audio only", isOn: $audioOnly)
             if audioOnly {
                 Picker("Format", selection: $audioFormat) {
-                    ForEach(AudioFormat.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    ForEach(AudioFormat.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()

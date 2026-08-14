@@ -38,7 +38,7 @@ struct SettingsView: View {
                         value: $settings.concurrentFragments, in: 1...16)
 
                 Picker("Audio format", selection: $settings.defaultAudioFormat) {
-                    ForEach(AudioFormat.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    ForEach(AudioFormat.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
 
                 TextField("Subtitle languages", text: $settings.subtitleLanguages)

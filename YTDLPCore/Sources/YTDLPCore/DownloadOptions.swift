@@ -2,6 +2,18 @@ import Foundation
 
 public enum AudioFormat: String, Equatable, Sendable, CaseIterable {
     case m4a, mp3, opus
+
+    /// What the format pickers show. The `rawValue` is what yt-dlp's
+    /// `--audio-format` expects, and it names the *container* — a person
+    /// choosing "m4a" is really choosing AAC. Kept separate so the menu can
+    /// say so without changing the argument.
+    public var displayName: String {
+        switch self {
+        case .m4a: "AAC (m4a)"
+        case .mp3: "MP3"
+        case .opus: "Opus"
+        }
+    }
 }
 
 public enum MediaMode: Equatable, Sendable {
